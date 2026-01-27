@@ -1,14 +1,14 @@
 import discord
+from discord.ext import commands
 from discord import app_commands
 import os
 
 intents = discord.Intents.default()
-client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ===== DỮ LIỆU =====
 
-GIA_GOC = {
+NONG_SAN = {
     "Nhân sâm": 725000,
     "Bánh bao": 180000,
     "Cây đậu": 12000,
@@ -27,100 +27,92 @@ GIA_GOC = {
     "Cây tùng": 300
 }
 
-BIEN_THE = {
-    "Ánh Vàng": 2.0,
-    "Cầu Vồng": 1.967,
-    "Ẩm Ướt": 1.10,
-    "Nhiễm Điện": 1.20,
-    "Gió": 1.18,
-    "Cát": 1.18,
-    "Ánh Trăng": 1.38,
-    "Cực Quang": 1.40,
-    "Sương": 1.40,
-    "Khô": 1.198,
-    "Nguyền Rủa": 1.236,
-    "Đèn Trời": 1.40,
-    "Ảo Ảnh": 1.30,
-    "Lạnh": 1.422,
-    "Pháo Hoa": 1.222
+THOI_TIET = {
+    "Ánh Vàng ☀️": 2.0,
+    "Cầu Vồng 🌈": 1.967,
+    "Ẩm Ướt 💧": 1.1,
+    "Nhiễm Điện ⚡": 1.2,
+    "Gió 🌪️": 1.18,
+    "Cát 🏜️": 1.18,
+    "Ánh Trăng 🌙": 1.38,
+    "Cực Quang 🌌": 1.4,
+    "Sương 🌫️": 1.4,
+    "Khô 🔥": 1.198,
+    "Nguyên Rủa ☠️": 1.236,
+    "Đèn Trời 🎆": 1.4,
+    "Ảo Ảnh ✨": 1.3,
+    "Lạnh ❄️": 1.422,
+    "Pháo Hoa 🎇": 1.222
 }
 
-# ===== MODAL NHẬP KG =====
-class KgModal(discord.ui.Modal, title="Nhập số kg"):
-    kg = discord.ui.TextInput(label="Số kg", placeholder="VD: 17.58")
+# ===== UI =====
 
-    def __init__(self, nong_san, bien_the):
-        super().__init__()
-        self.nong_san = nong_san
-        self.bien_the = bien_the
-
-    async def on_submit(self, interaction: discord.Interaction):
-        try:
-            kg = float(self.kg.value)
-        except:
-            await interaction.response.send_message("❌ Số kg không hợp lệ", ephemeral=True)
-            return
-
-        gia = GIA_GOC[self.nong_san] * kg * BIEN_THE[self.bien_the]
-
-        embed = discord.Embed(
-            title="🚨 CÂN NÔNG SẢN",
-            color=0xFFD966
-        )
-        embed.add_field(name="Vật phẩm", value=self.nong_san, inline=False)
-        embed.add_field(name="Cân nặng", value=f"{kg} kg", inline=True)
-        embed.add_field(name="Biến thể", value=self.bien_the, inline=True)
-        embed.add_field(name="💰 KẾT QUẢ", value=f"{int(gia):,} xu", inline=False)
-
-        await interaction.response.send_message(embed=embed)
-
-# ===== DROPDOWN BIẾN THỂ =====
-class BienTheSelect(discord.ui.Select):
-    def __init__(self, nong_san):
-        options = [
-            discord.SelectOption(label=name)
-            for name in BIEN_THE.keys()
-        ]
-        super().__init__(placeholder="Chọn biến thể", options=options)
-        self.nong_san = nong_san
-
-    async def callback(self, interaction: discord.Interaction):
-        bien_the = self.values[0]
-        await interaction.response.send_modal(KgModal(self.nong_san, bien_the))
-
-# ===== DROPDOWN NÔNG SẢN =====
 class NongSanSelect(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label=name)
-            for name in GIA_GOC.keys()
+            discord.SelectOption(label=k, value=k)
+            for k in NONG_SAN.keys()
         ]
-        super().__init__(placeholder="Chọn nông sản", options=options)
+        super().__init__(placeholder="🌱 Chọn nông sản", options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        nong_san = self.values[0]
-        view = discord.ui.View()
-        view.add_item(BienTheSelect(nong_san))
-        await interaction.response.send_message("🔽 Chọn biến thể", view=view, ephemeral=True)
+        interaction.client.ns = self.values[0]
+        await interaction.response.defer()
 
-# ===== VIEW =====
-class NongSanView(discord.ui.View):
+class ThoiTietSelect(discord.ui.Select):
     def __init__(self):
-        super().__init__(timeout=60)
+        options = [
+            discord.SelectOption(label=k, value=k)
+            for k in THOI_TIET.keys()
+        ]
+        super().__init__(placeholder="⛅ Chọn thời tiết", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        interaction.client.tt = self.values[0]
+        await interaction.response.defer()
+
+class CanView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=120)
         self.add_item(NongSanSelect())
+        self.add_item(ThoiTietSelect())
 
 # ===== SLASH COMMAND =====
-@tree.command(name="can", description="Cân giá nông sản Play Together")
-async def can(interaction: discord.Interaction):
+
+@bot.tree.command(name="can", description="Công cụ tính giá nông sản")
+@app_commands.describe(kg="Nhập số kg cần cân")
+async def can(interaction: discord.Interaction, kg: float):
+    bot.kg = kg
     await interaction.response.send_message(
-        "🔽 Chọn nông sản cần cân",
-        view=NongSanView(),
+        "🧮 **CÔNG CỤ TÍNH GIÁ NÔNG SẢN**",
+        view=CanView(),
         ephemeral=True
     )
 
-@client.event
+@bot.event
 async def on_ready():
-    await tree.sync()
-    print(f"✅ Bot online: {client.user}")
+    await bot.tree.sync()
+    print(f"Bot online: {bot.user}")
 
-client.run(os.getenv("DISCORD_TOKEN"))
+@bot.event
+async def on_interaction(interaction: discord.Interaction):
+    if hasattr(bot, "ns") and hasattr(bot, "tt"):
+        gia = NONG_SAN[bot.ns]
+        he_so = THOI_TIET[bot.tt]
+        tong = gia * bot.kg * he_so
+
+        await interaction.followup.send(
+            f"""
+🌱 **Nông sản:** {bot.ns}  
+⚖️ **Khối lượng:** {bot.kg} kg  
+⛅ **Thời tiết:** {bot.tt}  
+
+💰 **Tổng tiền:** `{int(tong):,} xu`
+""",
+            ephemeral=True
+        )
+
+        del bot.ns
+        del bot.tt
+
+bot.run(os.getenv("DISCORD_TOKEN"))
