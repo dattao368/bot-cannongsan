@@ -65,11 +65,17 @@ class ThoiTietSelect(discord.ui.Select):
             discord.SelectOption(label=k, value=k)
             for k in THOI_TIET.keys()
         ]
-        super().__init__(placeholder="⛅ Chọn thời tiết", options=options)
+        super().__init__(
+            placeholder="⛅ Chọn biến thể (tối đa 5)",
+            min_values=1,
+            max_values=5,
+            options=options
+        )
 
     async def callback(self, interaction: discord.Interaction):
-        interaction.client.tt = self.values[0]
+        interaction.client.tt = self.values  # ← LIST
         await interaction.response.defer()
+
 
 class CanView(discord.ui.View):
     def __init__(self):
@@ -98,14 +104,20 @@ async def on_ready():
 async def on_interaction(interaction: discord.Interaction):
     if hasattr(bot, "ns") and hasattr(bot, "tt"):
         gia = NONG_SAN[bot.ns]
-        he_so = THOI_TIET[bot.tt]
+
+        he_so = 1
+        for tt in bot.tt:
+            he_so *= THOI_TIET[tt]  # nhân dồn
+
         tong = gia * bot.kg * he_so
+
+        bien_the_text = ", ".join(bot.tt)
 
         await interaction.followup.send(
             f"""
 🌱 **Nông sản:** {bot.ns}  
 ⚖️ **Khối lượng:** {bot.kg} kg  
-⛅ **Thời tiết:** {bot.tt}  
+⛅ **Biến thể:** {bien_the_text}  
 
 💰 **Tổng tiền:** `{int(tong):,} xu`
 """,
@@ -114,5 +126,6 @@ async def on_interaction(interaction: discord.Interaction):
 
         del bot.ns
         del bot.tt
+
 
 bot.run(os.getenv("DISCORD_TOKEN"))
