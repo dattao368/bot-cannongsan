@@ -1,13 +1,14 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
 
 # ================== CONFIG ==================
-TOKEN = "DAN_TOKEN_BOT_CUA_BAN"
+TOKEN = "MTQ2NTcxNjQ0ODg3MjYzMjQ1Mw.GfbV5C.slpMZ3P88z-hKzeceG2nkh_YLkZgRAsH9bdioU"
 
-ROLE_NONG_DAN_ID = 123456789012345678  # <-- thay ID role Nông Dân
+ROLE_NONG_DAN_ID = 123456789012345678  # thay ID role Nông Dân
 
 intents = discord.Intents.default()
+intents.message_content = True
+
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ================== GIÁ GỐC (xu/kg) ==================
@@ -72,41 +73,30 @@ class CanView(discord.ui.View):
         self.nong_san = None
         self.bien_the = []
 
-    # Dropdown chọn nông sản
     @discord.ui.select(
         placeholder="🌱 Chọn nông sản",
         options=[
-            discord.SelectOption(
-                label=name.title(),
-                value=name,
-                emoji=EMOJI_NS[name]
-            )
+            discord.SelectOption(label=name.title(), value=name, emoji=EMOJI_NS[name])
             for name in GIA_GOC
-        ]
+        ],
     )
     async def chon_nong_san(self, interaction: discord.Interaction, select: discord.ui.Select):
         self.nong_san = select.values[0]
         await interaction.response.defer()
 
-    # Dropdown chọn biến thể
     @discord.ui.select(
         placeholder="🌈 Chọn biến thể (tối đa 5)",
         min_values=0,
         max_values=5,
         options=[
-            discord.SelectOption(
-                label=bt.title(),
-                value=bt,
-                emoji=EMOJI_TT[bt]
-            )
+            discord.SelectOption(label=bt.title(), value=bt, emoji=EMOJI_TT[bt])
             for bt in BIEN_THE
-        ]
+        ],
     )
     async def chon_bien_the(self, interaction: discord.Interaction, select: discord.ui.Select):
         self.bien_the = select.values
         await interaction.response.defer()
 
-    # Button tính giá
     @discord.ui.button(label="⚖️ Tính Giá", style=discord.ButtonStyle.success)
     async def tinh_gia(self, interaction: discord.Interaction, button: discord.ui.Button):
 
@@ -140,46 +130,27 @@ class KgModal(discord.ui.Modal, title="Nhập số kg"):
 
         role = interaction.guild.get_role(ROLE_NONG_DAN_ID)
 
-        embed = discord.Embed(
-            title="⚖️ CÔNG CỤ CÂN NÔNG SẢN",
-            color=0x00ff99
-        )
+        embed = discord.Embed(title="⚖️ CÔNG CỤ CÂN NÔNG SẢN", color=0x00ff99)
 
         embed.add_field(
             name="🌱 Nông sản",
             value=f"{EMOJI_NS[self.nong_san]} **{self.nong_san.title()}**",
-            inline=False
+            inline=False,
         )
 
-        embed.add_field(
-            name="⚖️ Cân nặng",
-            value=f"**{kg} kg**",
-            inline=False
+        embed.add_field(name="⚖️ Cân nặng", value=f"**{kg} kg**", inline=False)
+
+        ds = (
+            "\n".join(f"{EMOJI_TT[x]} {x.title()}" for x in self.bien_the)
+            if self.bien_the
+            else "Không có"
         )
 
-        if self.bien_the:
-            ds = "\n".join(
-                f"{EMOJI_TT[x]} {x.title()}" for x in self.bien_the
-            )
-        else:
-            ds = "Không có"
+        embed.add_field(name="🌈 Biến thể", value=ds, inline=False)
 
-        embed.add_field(
-            name="🌈 Biến thể",
-            value=ds,
-            inline=False
-        )
+        embed.add_field(name="💰 Kết quả", value=f"**{tong:,} xu**", inline=False)
 
-        embed.add_field(
-            name="💰 Kết quả",
-            value=f"**{tong:,} xu**",
-            inline=False
-        )
-
-        await interaction.response.send_message(
-            content=f"{role.mention}",
-            embed=embed
-        )
+        await interaction.response.send_message(content=f"{role.mention}", embed=embed)
 
 
 # ================== SLASH COMMAND ==================
@@ -187,7 +158,7 @@ class KgModal(discord.ui.Modal, title="Nhập số kg"):
 async def can(interaction: discord.Interaction):
     await interaction.response.send_message(
         "📌 **Chọn nông sản và biến thể để tính giá:**",
-        view=CanView()
+        view=CanView(),
     )
 
 
